@@ -13,7 +13,7 @@ volatile int counter = 0;
 
 uint8_t strobeInput = 6;
 uint8_t UV_LED = 7;
-uint8_t GREEN_LED = 7;
+uint8_t GREEN_LED = 10;
 uint8_t RED_LED = 8;
 uint8_t IR_LED = 9;
 
@@ -41,10 +41,11 @@ uint8_t dirPin_2 = 26;
 uint8_t solenoid_DIR = 3;
 uint8_t solenoid_ON = 2;
 
-volatile uint8_t PWM_GREEN = 255;
-volatile uint8_t PWM_UV = 255;
-volatile uint8_t PWM_Red = 255;
-volatile uint8_t PWM_IR = 255;
+volatile uint8_t PWM_GREEN = 1;
+volatile uint8_t PWM_UV = 1;
+volatile uint8_t PWM_Red = 1;
+volatile uint8_t PWM_IR = 1;
+volatile uint8_t PWM_IR_min = 1;
 
 uint8_t mode;
 uint8_t actualFilter = 0;
@@ -63,6 +64,7 @@ int zoomOptimal = 1162;
 int fastLag = 500;
 int TIMER_INTERVAL_MS = 500;
 int optimalZoom = 1560;
+int deltaFocusThresh = 10;
 
 uint8_t autofocusState = 0;
 
@@ -70,10 +72,10 @@ int16_t distance;
 
 volatile uint8_t M[4][2];
 volatile uint8_t M0[4][2]{
-  { PWM_GREEN, 0 },
-  { PWM_GREEN, 0 },
-  { PWM_GREEN, 0 },
-  { PWM_GREEN, 0 }
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 }
 };
 volatile uint8_t M1[4][2];
 volatile uint8_t M2[4][2];
@@ -99,9 +101,9 @@ uint8_t focusCorrected = 0;
 //   TIMER_ISR_START(alarm_num);
 //   ///////////////////////////////////////////////////////////
 //   //timer interrupt toggles pin LED_BUILTIN
-  // if (focusCorrected == 1) {
-  //   focusCorrected = 0;
-  // }
+// if (focusCorrected == 1) {
+//   focusCorrected = 0;
+// }
 
 //   // digitalWrite(outputPin1, toggle1);
 //   toggle1 = !toggle1;
@@ -120,32 +122,32 @@ uint8_t focusCorrected = 0;
 
 void modesCacheRefresh() {
   // Serial.println("cache refreshing");
-  M1[0][0] = PWM_UV;
+  M1[0][0] = PWM_UV;        // Red, Green, R/G, R-G
   M1[0][1] = 0;
   M1[1][0] = 0;
   M1[1][1] = 0;
-  M1[2][0] = PWM_GREEN;
-  M1[2][1] = PWM_GREEN;
-  M1[3][0] = 0;
-  M1[3][1] = 0;
+  M1[2][0] = 0;
+  M1[2][1] = 0;
+  M1[3][0] = PWM_IR_min;
+  M1[3][1] = PWM_IR_min;
 
-  M2[0][0] = 0;
+  M2[0][0] = 0;           //RLED
   M2[0][1] = 0;
   M2[1][0] = PWM_Red;
   M2[1][1] = 0;
-  M2[2][0] = PWM_GREEN;
-  M2[2][1] = PWM_GREEN;
-  M2[3][0] = 0;
-  M2[3][1] = 0;
+  M2[2][0] = 0;
+  M2[2][1] = 0;
+  M2[3][0] = PWM_IR_min;
+  M2[3][1] = PWM_IR_min;
 
-  M3[0][0] = PWM_UV;  //Both UV and Red LEDs
+  M3[0][0] = PWM_UV;    //RLED + UV_LED
   M3[0][1] = 0;
   M3[1][0] = PWM_Red;
   M3[1][1] = 0;
-  M3[2][0] = PWM_GREEN;
-  M3[2][1] = PWM_GREEN;
-  M3[3][0] = 0;
-  M3[3][1] = 0;
+  M3[2][0] = 0;
+  M3[2][1] = 0;
+  M3[3][0] = PWM_IR_min;
+  M3[3][1] = PWM_IR_min;
 
   M4[0][0] = PWM_UV;  //oxygenation IR LEDs must be mounted instead of UV LEDs.
   M4[0][1] = 0;
@@ -156,30 +158,30 @@ void modesCacheRefresh() {
   M4[3][0] = 0;
   M4[3][1] = 0;
 
-  M5[0][0] = 0;  // ICG mode IR LEDs must be mounted instead of GREEN LEDs.
+  M5[0][0] = 0;       // G_LED
   M5[0][1] = 0;
   M5[1][0] = 0;
   M5[1][1] = 0;
   M5[2][0] = PWM_GREEN;
   M5[2][1] = 0;
-  M4[3][0] = 0;
-  M4[3][1] = 0;
+  M5[3][0] = PWM_IR_min;
+  M5[3][1] = PWM_IR_min;
 
-  M6[0][0] = PWM_UV;  //Sequental stroboscope of red and UV LEDs.
+  M6[0][0] = PWM_UV;  //Tripple: red, green and UV LEDs.
   M6[0][1] = 0;
-  M6[1][0] = 0;
-  M6[1][1] = PWM_Red;
+  M6[1][0] = PWM_Red;
+  M6[1][1] = 0;
   M6[2][0] = PWM_GREEN;
-  M6[2][1] = PWM_GREEN;
-  M6[3][0] = 0;
-  M6[3][1] = 0;
+  M6[2][1] = 0;
+  M6[3][0] = PWM_IR_min;
+  M6[3][1] = PWM_IR_min;
 
-  M7[0][0] = 0;
+  M7[0][0] = 0;  // ICG mode IR LEDs must be mounted instead of GREEN LEDs.
   M7[0][1] = 0;
   M7[1][0] = 0;
   M7[1][1] = 0;
-  M7[2][0] = PWM_GREEN;
-  M7[2][1] = PWM_GREEN;
+  M7[2][0] = 0;  //No White Light
+  M7[2][1] = 0;  //No White Light
   M7[3][0] = PWM_IR;
   M7[3][1] = 0;
 }
@@ -187,68 +189,71 @@ void modesCacheRefresh() {
 
 
 void setup() {
-  M1[0][0] = PWM_UV;
-  M1[0][1] = 0;
-  M1[1][0] = 0;
-  M1[1][1] = 0;
-  M1[2][0] = PWM_GREEN;
-  M1[2][1] = PWM_GREEN;
-  M1[3][0] = 0;
-  M1[3][1] = 0;
 
-  M2[0][0] = 0;
-  M2[0][1] = 0;
-  M2[1][0] = PWM_Red;
-  M2[1][1] = 0;
-  M2[2][0] = PWM_GREEN;
-  M2[2][1] = PWM_GREEN;
-  M2[3][0] = 0;
-  M2[3][1] = 0;
+  modesCacheRefresh();
 
-  M3[0][0] = PWM_UV;
-  M3[0][1] = 0;
-  M3[1][0] = PWM_Red;
-  M3[1][1] = 0;
-  M3[2][0] = PWM_GREEN;
-  M3[2][1] = PWM_GREEN;
-  M3[3][0] = 0;
-  M3[3][1] = 0;
+  // M1[0][0] = PWM_UV;        // Red, Green, R/G, R-G
+  // M1[0][1] = 0;
+  // M1[1][0] = 0;
+  // M1[1][1] = 0;
+  // M1[2][0] = 0;
+  // M1[2][1] = 0;
+  // M1[3][0] = PWM_IR_min;
+  // M1[3][1] = PWM_IR_min;
 
-  M4[0][0] = PWM_UV;  //oxygenation IR LEDs must be mounted instead of UV LEDs.
-  M4[0][1] = 0;
-  M4[1][0] = 0;
-  M4[1][1] = PWM_Red;
-  M4[2][0] = 0;
-  M4[2][1] = 0;
-  M4[3][0] = 0;
-  M4[3][1] = 0;
+  // M2[0][0] = 0;           //RLED
+  // M2[0][1] = 0;
+  // M2[1][0] = PWM_Red;
+  // M2[1][1] = 0;
+  // M2[2][0] = 0;
+  // M2[2][1] = 0;
+  // M2[3][0] = PWM_IR_min;
+  // M2[3][1] = PWM_IR_min;
 
-  M5[0][0] = 0;
-  M5[0][1] = 0;
-  M5[1][0] = 0;
-  M5[1][1] = 0;
-  M5[2][0] = PWM_GREEN;
-  M5[2][1] = 0;
-  M5[3][0] = 0;
-  M5[3][1] = 0;
+  // M3[0][0] = PWM_UV;    //RLED + UV_LED
+  // M3[0][1] = 0;
+  // M3[1][0] = PWM_Red;
+  // M3[1][1] = 0;
+  // M3[2][0] = 0;
+  // M3[2][1] = 0;
+  // M3[3][0] = PWM_IR_min;
+  // M3[3][1] = PWM_IR_min;
 
-  M6[0][0] = PWM_UV;  //Sequental stroboscope of red and UV LEDs.
-  M6[0][1] = 0;
-  M6[1][0] = 0;
-  M6[1][1] = PWM_Red;
-  M6[2][0] = PWM_GREEN;
-  M6[2][1] = PWM_GREEN;
-  M6[3][0] = 0;
-  M6[3][1] = 0;
+  // M4[0][0] = PWM_UV;  //oxygenation IR LEDs must be mounted instead of UV LEDs.
+  // M4[0][1] = 0;
+  // M4[1][0] = 0;
+  // M4[1][1] = PWM_Red;
+  // M4[2][0] = 0;
+  // M4[2][1] = 0;
+  // M4[3][0] = 0;
+  // M4[3][1] = 0;
 
-  M7[0][0] = 0;  // ICG mode IR LEDs must be mounted instead of GREEN LEDs.
-  M7[0][1] = 0;
-  M7[1][0] = 0;
-  M7[1][1] = 0;
-  M7[2][0] = PWM_GREEN;
-  M7[2][1] = PWM_GREEN;
-  M7[3][0] = PWM_IR;
-  M7[3][1] = 0;
+  // M5[0][0] = 0;       // G_LED
+  // M5[0][1] = 0;
+  // M5[1][0] = 0;
+  // M5[1][1] = 0;
+  // M5[2][0] = PWM_GREEN;
+  // M5[2][1] = 0;
+  // M5[3][0] = PWM_IR_min;
+  // M5[3][1] = PWM_IR_min;
+
+  // M6[0][0] = PWM_UV  //Tripple: red, green and UV LEDs.
+  // M6[0][1] = 0;
+  // M6[1][0] = PWM_Red;
+  // M6[1][1] = 0;
+  // M6[2][0] = PWM_GREEN;
+  // M6[2][1] = 0;
+  // M6[3][0] = PWM_IR_min;
+  // M6[3][1] = PWM_IR_min;
+
+  // M7[0][0] = 0;  // ICG mode IR LEDs must be mounted instead of GREEN LEDs.
+  // M7[0][1] = 0;
+  // M7[1][0] = 0;
+  // M7[1][1] = 0;
+  // M7[2][0] = 0;  //No White Light
+  // M7[2][1] = 0;  //No White Light
+  // M7[3][0] = PWM_IR;
+  // M7[3][1] = 0;
 
   pinMode(stepPin_1, OUTPUT);
   pinMode(dirPin_1, OUTPUT);
@@ -275,11 +280,11 @@ void setup() {
   pinMode(IR_LED, OUTPUT);     // GREEN LED
   // pinMode(3, OUTPUT);          // For migalka test
 
-  analogWrite(GREEN_LED, PWM_GREEN);
-  delay(10);
-  analogWrite(UV_LED, PWM_GREEN);   // 4 correct work of interrpt
-  analogWrite(RED_LED, PWM_GREEN);  // 4 correct work of interrpt
-  analogWrite(IR_LED, PWM_GREEN);   // 4 correct work of interrpt
+  // analogWrite(GREEN_LED, PWM_GREEN);
+  // delay(10);
+  // analogWrite(UV_LED, PWM_GREEN);   // 4 correct work of interrpt
+  // analogWrite(RED_LED, PWM_GREEN);  // 4 correct work of interrpt
+  // analogWrite(IR_LED, PWM_GREEN);   // 4 correct work of interrpt
   //  analogWrite(UV_LED, PWM_GREEN); // 4 correct work of interrpt
   //digitalWrite(UV_LED, HIGH);// 4 correct work of interrpt
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
@@ -287,11 +292,11 @@ void setup() {
   Serial.setTimeout(100);
   //  pinMode(strobeInput,INPUT);
   //  attachInterrupt(strobeInput, Strobe_Input_Handler, RISING); // 4 ARDUINO
-  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, RISING);  // 4 Rpi Pico
+  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, HIGH);  // 4 Rpi Pico
   // attachInterrupt(digitalPinToInterrupt(k1), Strobe_Input_HandlerFall, FALLING);  // 4 Rpi Pico
   //  pinMode(strobeInput, INPUT_PULLUP); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
-    pinMode(k1, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+  pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   digitalWrite(solenoid_DIR, LOW);
   digitalWrite(solenoid_ON, LOW);
   motorsCalibration();
@@ -336,16 +341,16 @@ void setup() {
   // start continuous ranging
   lox.startRangeContinuous();
 
-//   if (ITimer1.attachInterruptInterval(TIMER1_INTERVAL_MS * 1000, TimerHandler1)) {
-//     Serial.print(F("Starting ITimer1 OK, millis() = "));
-//     Serial.println(millis());
+  //   if (ITimer1.attachInterruptInterval(TIMER1_INTERVAL_MS * 1000, TimerHandler1)) {
+  //     Serial.print(F("Starting ITimer1 OK, millis() = "));
+  //     Serial.println(millis());
 
-// #if (TIMER_INTERRUPT_DEBUG > 1)
-//     Serial.print(F("OutputPin1 = "));
-//     Serial.print(outputPin1);
-// #endif
-//   } else
-//     Serial.println(F("Can't set ITimer1. Select another freq. or timer"));
+  // #if (TIMER_INTERRUPT_DEBUG > 1)
+  //     Serial.print(F("OutputPin1 = "));
+  //     Serial.print(outputPin1);
+  // #endif
+  //   } else
+  //     Serial.println(F("Can't set ITimer1. Select another freq. or timer"));
 
   zoomNsteps(1, maxZoomSteps, fastLag);  // correct N of steps
   zoomNsteps(0, maxZoomSteps, fastLag);
@@ -385,30 +390,29 @@ void Strobe_Input_HandlerRise() {
     counter = 0;
   }
   if (counter == 1) {
-      //  analogWrite(UV_LED, PWM_UV);
-      //  analogWrite(RED_LED, 0);
-      analogWrite(UV_LED, M[0][0]);
-    analogWrite(RED_LED, M[1][0]);
-    analogWrite(GREEN_LED, M[2][0]);
-    analogWrite(IR_LED, M[3][0]); 
+    //  analogWrite(UV_LED, PWM_UV);
+    //  analogWrite(RED_LED, 0);
+    // analogWrite(UV_LED, M[0][0]);
+    // analogWrite(RED_LED, M[1][0]);
+    // analogWrite(GREEN_LED, M[2][0]);
+    // analogWrite(IR_LED, M[3][0]);
 
     // lastTimer2 = millis();
-  //       digitalWrite(UV_LED, HIGH);
-  //   digitalWrite(RED_LED,HIGH);
-  //   digitalWrite(GREEN_LED, HIGH);
-  //  digitalWrite(IR_LED, HIGH);
-  } else
-   {
-    //    analogWrite(UV_LED, 0);
-    //    analogWrite(RED_LED, PWM_Red);
-  //   digitalWrite(UV_LED, LOW);
-  //   digitalWrite(RED_LED,LOW);
-  //   digitalWrite(GREEN_LED, LOW);
-  //  digitalWrite(IR_LED, LOW);
-      analogWrite(UV_LED, M[0][1]);
-    analogWrite(RED_LED, M[1][1]);
-    analogWrite(GREEN_LED, M[2][1]);
-    analogWrite(IR_LED, M[3][1]);  
+          digitalWrite(UV_LED, M[0][0]);
+      digitalWrite(RED_LED, M[1][0]);
+      digitalWrite(GREEN_LED, M[2][0]);
+     digitalWrite(IR_LED, M[3][0]);
+  } else {
+    //   //    analogWrite(UV_LED, 0);
+    //   //    analogWrite(RED_LED, PWM_Red);
+      digitalWrite(UV_LED, M[0][1]);
+      digitalWrite(RED_LED,M[1][1]);
+      digitalWrite(GREEN_LED, M[2][1]);
+    // //  digitalWrite(IR_LED, LOW);
+    // digitalWrite(UV_LED, 0);
+    // digitalWrite(RED_LED, 0);
+    // digitalWrite(GREEN_LED, 0);
+    digitalWrite(IR_LED, M[3][1]);
   }
   // }
   counter += 1;  // + синхр.
@@ -421,13 +425,12 @@ void Strobe_Input_HandlerRise() {
   // }
 }
 
-void Strobe_Input_HandlerFall()
-{
-    analogWrite(UV_LED, M[0][1]);
-    analogWrite(RED_LED, M[1][1]);
-    analogWrite(GREEN_LED, M[2][1]);
-    analogWrite(IR_LED, M[3][1]);
-}
+// void Strobe_Input_HandlerFall() {
+//   analogWrite(UV_LED, 0);
+//   // analogWrite(RED_LED, 0);
+//   // analogWrite(GREEN_LED, 0);
+//   // analogWrite(IR_LED, 0);
+// }
 
 void waiting_4_command() {
   int PWM_VAL, PWM_VALH, PWM_VALL, PWM_VALlowest;
@@ -509,11 +512,11 @@ void waiting_4_command() {
     focusNsteps(dir, 100, fastLag);  // correct N of steps
   }
 
-    if (cmd.substring(0, 5) == "AFOFF") {
-      autofocusState = 0;
+  if (cmd.substring(0, 5) == "AFOFF") {
+    autofocusState = 0;
   }
-      if (cmd.substring(0, 5) == "AFON") {
-      autofocusState = 1;
+  if (cmd.substring(0, 5) == "AFON") {
+    autofocusState = 1;
   }
 
   if (cmd.substring(0, 1) == "M") {
@@ -582,16 +585,16 @@ int distanceMeas(void) {
   //     Serial.println(vl53.vl_status);
   //     return 0;
   //   }
-    // Serial.print(F("Distance: "));
-    Serial.print(distance);
-    Serial.println(" mm");
-    Serial.print("ZOOM ");
-    Serial.println(zoomPosition);
-    Serial.print("FOCUS ");
-    Serial.println(focusPosition);
+  // Serial.print(F("Distance: "));
+  Serial.print(distance);
+  Serial.println(" mm");
+  Serial.print("ZOOM ");
+  Serial.println(zoomPosition);
+  Serial.print("FOCUS ");
+  Serial.println(focusPosition);
 
-    // data is read out, time for another reading!
-    // vl53.clearInterrupt();
+  // data is read out, time for another reading!
+  // vl53.clearInterrupt();
   // }
   return distance;
 }
@@ -770,6 +773,10 @@ void focusNsteps(uint8_t dir, int nSteps, int lag) {
 void focusCorrection() {
   int dir;
   int distance = distanceMeas();
+  if(distance > 1000)
+  {
+    return;
+  }
   // int distanceRange = round(distance / 10);
   // int zoomPositionRange = round(zoomPosition / 10);
   float correctFocus;
@@ -777,7 +784,7 @@ void focusCorrection() {
   int steps;
 
   // correctFocus = -2473.5 + 1.7036 * distance + 1.867 * zoomPosition + 0.02818 * distance * distance - 0.0073557 * zoomPosition * distance + 0.00021246 * zoomPosition * zoomPosition; //function of two variables
-  correctFocus = -0.0012*distance*distance*distance+0.4607*distance*distance-61.597*distance+3126.5; //function of tthe one variable
+  correctFocus = -0.0012 * distance * distance * distance + 0.4607 * distance * distance - 61.597 * distance + 3126.5;  //function of tthe one variable
 
   if ((correctFocus - focusPosition) >= 0) {
     deltaFocus = correctFocus - focusPosition;
@@ -785,6 +792,11 @@ void focusCorrection() {
   } else {
     deltaFocus = focusPosition - correctFocus;
     dir = 0;
+  }
+  if(abs(deltaFocus) < deltaFocusThresh)
+  {
+    Serial.println("No need 4 correction");
+    return;
   }
   Serial.println("doing correction");
   Serial.print("correct focus = ");
@@ -809,39 +821,38 @@ void loop() {
   if (millis() - lastTimer1 > TIMER_INTERVAL_MS) {
     lastTimer1 = millis();
     // if (focusCorrected == 0) {
-      if(autofocusState ==1)
-      {
-        focusCorrection();  
-      }
+    if (autofocusState == 1) {
+      focusCorrection();
+    }
   }
-    //     if (millis() - lastTimer2 > ExposureMS) {
-    
-    // analogWrite(UV_LED, 0);
-    // analogWrite(RED_LED, 0);
-    // analogWrite(GREEN_LED, 0);
-    // analogWrite(IR_LED, 0);
-      
-    // }
-    // if (timer1Stopped) {
-    //   Serial.print(F("Start ITimer1, millis() = "));
-    //   Serial.println(millis());
-    //   // focusCorrected = 0;
+  //     if (millis() - lastTimer2 > ExposureMS) {
 
-    //   ITimer1.restartTimer();
-    //   // distanceMeas();
+  // analogWrite(UV_LED, 0);
+  // analogWrite(RED_LED, 0);
+  // analogWrite(GREEN_LED, 0);
+  // analogWrite(IR_LED, 0);
 
+  // }
+  // if (timer1Stopped) {
+  //   Serial.print(F("Start ITimer1, millis() = "));
+  //   Serial.println(millis());
+  //   // focusCorrected = 0;
 
-
-    //   // filterChange(actualFilter);
-    // } else {
+  //   ITimer1.restartTimer();
+  //   // distanceMeas();
 
 
-    //   Serial.print(F("Stop ITimer1, millis() = "));
-    //   Serial.println(millis());
-    //   ITimer1.stopTimer();
-    // }
-    // timer1Stopped = !timer1Stopped;
-    // Serial.println("timer restarted");
+
+  //   // filterChange(actualFilter);
+  // } else {
+
+
+  //   Serial.print(F("Stop ITimer1, millis() = "));
+  //   Serial.println(millis());
+  //   ITimer1.stopTimer();
+  // }
+  // timer1Stopped = !timer1Stopped;
+  // Serial.println("timer restarted");
   // }
 
   // timer1Stopped = timer1Stopped;
