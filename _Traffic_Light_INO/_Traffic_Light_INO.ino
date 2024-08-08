@@ -30,7 +30,8 @@ uint8_t dirPin_1 = 12;
 uint8_t k1 = 20;
 uint8_t k2 = 21;
 uint8_t k3 = 22;
-uint8_t k4 = 23;
+// uint8_t k4 = 23;
+uint8_t therapyPin = 23;
 uint8_t k5 = 24;
 uint8_t k6 = 25;
 
@@ -122,7 +123,7 @@ uint8_t focusCorrected = 0;
 
 void modesCacheRefresh() {
   // Serial.println("cache refreshing");
-  M1[0][0] = PWM_UV;        // Red, Green, R/G, R-G
+  M1[0][0] = PWM_UV;  // Red, Green, R/G, R-G
   M1[0][1] = 0;
   M1[1][0] = 0;
   M1[1][1] = 0;
@@ -131,7 +132,7 @@ void modesCacheRefresh() {
   M1[3][0] = PWM_IR_min;
   M1[3][1] = PWM_IR_min;
 
-  M2[0][0] = 0;           //RLED
+  M2[0][0] = 0;  //RLED
   M2[0][1] = 0;
   M2[1][0] = PWM_Red;
   M2[1][1] = 0;
@@ -140,7 +141,7 @@ void modesCacheRefresh() {
   M2[3][0] = PWM_IR_min;
   M2[3][1] = PWM_IR_min;
 
-  M3[0][0] = PWM_UV;    //RLED + UV_LED
+  M3[0][0] = PWM_UV;  //RLED + UV_LED
   M3[0][1] = 0;
   M3[1][0] = PWM_Red;
   M3[1][1] = 0;
@@ -158,7 +159,7 @@ void modesCacheRefresh() {
   M4[3][0] = 0;
   M4[3][1] = 0;
 
-  M5[0][0] = 0;       // G_LED
+  M5[0][0] = 0;  // G_LED
   M5[0][1] = 0;
   M5[1][0] = 0;
   M5[1][1] = 0;
@@ -267,7 +268,8 @@ void setup() {
   pinMode(k1, INPUT);
   pinMode(k2, INPUT);
   pinMode(k3, INPUT);
-  pinMode(k4, INPUT);
+  // pinMode(k4, INPUT);
+  pinMode(therapyPin, OUTPUT);
   pinMode(k5, INPUT);
   pinMode(k6, OUTPUT);
   pinMode(solenoid_DIR, OUTPUT);
@@ -295,8 +297,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, HIGH);  // 4 Rpi Pico
   // attachInterrupt(digitalPinToInterrupt(k1), Strobe_Input_HandlerFall, FALLING);  // 4 Rpi Pico
   //  pinMode(strobeInput, INPUT_PULLUP); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
-  pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
-  pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+  // pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+  // pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   digitalWrite(solenoid_DIR, LOW);
   digitalWrite(solenoid_ON, LOW);
   motorsCalibration();
@@ -352,14 +354,14 @@ void setup() {
   //   } else
   //     Serial.println(F("Can't set ITimer1. Select another freq. or timer"));
 
-  zoomNsteps(1, maxZoomSteps, fastLag);  // correct N of steps
-  zoomNsteps(0, maxZoomSteps, fastLag);
-  zoomPosition = 0;
-  // maxZoomSteps -= zoomOptimal;
-  focusNsteps(1, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
-  focusNsteps(0, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
-  zoomNsteps(1, optimalZoom, fastLag);
-  focusPosition = 0;
+  // zoomNsteps(1, maxZoomSteps, fastLag);  // correct N of steps
+  // zoomNsteps(0, maxZoomSteps, fastLag);
+  // zoomPosition = 0;
+  // // maxZoomSteps -= zoomOptimal;
+  // focusNsteps(1, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
+  // focusNsteps(0, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
+  // zoomNsteps(1, optimalZoom, fastLag);
+  // focusPosition = 0;
 }
 
 void motorsCalibration() {
@@ -398,16 +400,16 @@ void Strobe_Input_HandlerRise() {
     // analogWrite(IR_LED, M[3][0]);
 
     // lastTimer2 = millis();
-          digitalWrite(UV_LED, M[0][0]);
-      digitalWrite(RED_LED, M[1][0]);
-      digitalWrite(GREEN_LED, M[2][0]);
-     digitalWrite(IR_LED, M[3][0]);
+    digitalWrite(UV_LED, M[0][0]);
+    digitalWrite(RED_LED, M[1][0]);
+    digitalWrite(GREEN_LED, M[2][0]);
+    digitalWrite(IR_LED, M[3][0]);
   } else {
     //   //    analogWrite(UV_LED, 0);
     //   //    analogWrite(RED_LED, PWM_Red);
-      digitalWrite(UV_LED, M[0][1]);
-      digitalWrite(RED_LED,M[1][1]);
-      digitalWrite(GREEN_LED, M[2][1]);
+    digitalWrite(UV_LED, M[0][1]);
+    digitalWrite(RED_LED, M[1][1]);
+    digitalWrite(GREEN_LED, M[2][1]);
     // //  digitalWrite(IR_LED, LOW);
     // digitalWrite(UV_LED, 0);
     // digitalWrite(RED_LED, 0);
@@ -773,8 +775,7 @@ void focusNsteps(uint8_t dir, int nSteps, int lag) {
 void focusCorrection() {
   int dir;
   int distance = distanceMeas();
-  if(distance > 1000)
-  {
+  if (distance > 1000) {
     return;
   }
   // int distanceRange = round(distance / 10);
@@ -793,8 +794,7 @@ void focusCorrection() {
     deltaFocus = focusPosition - correctFocus;
     dir = 0;
   }
-  if(abs(deltaFocus) < deltaFocusThresh)
-  {
+  if (abs(deltaFocus) < deltaFocusThresh) {
     Serial.println("No need 4 correction");
     return;
   }
@@ -874,19 +874,19 @@ void loop() {
   VAR_X = analogRead(VAR_X_pin);
   VAR_Y = analogRead(VAR_Y_pin);
 
-  // if ((VAR_Y >= 767)) {
-  //   zoom(1, 2);
-  // }
-  // if (VAR_Y <= 256) {
-  //   zoom(0, 2);
-  // }
+  if ((VAR_Y >= 767)) {
+    zoom(1, 2);
+  }
+  if (VAR_Y <= 256) {
+    zoom(0, 2);
+  }
 
-  // if ((VAR_X >= 767)) {
-  //   focus(1, 2);
-  // }
-  // if (VAR_X <= 256) {
-  //   focus(0, 2);
-  // }
+  if ((VAR_X >= 767)) {
+    focus(1, 2);
+  }
+  if (VAR_X <= 256) {
+    focus(0, 2);
+  }
 
   //  Serial.print("X = ");
   //  Serial.print(VAR_X);
