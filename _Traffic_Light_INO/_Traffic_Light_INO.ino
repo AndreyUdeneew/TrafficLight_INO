@@ -46,7 +46,7 @@ volatile uint8_t PWM_GREEN = 1;
 volatile uint8_t PWM_UV = 1;
 volatile uint8_t PWM_Red = 1;
 volatile uint8_t PWM_IR = 1;
-volatile uint8_t PWM_IR_min = 1;
+volatile uint8_t PWM_IR_min = 0;
 
 uint8_t mode;
 uint8_t actualFilter = 0;
@@ -294,9 +294,9 @@ void setup() {
   Serial.setTimeout(100);
   //  pinMode(strobeInput,INPUT);
   //  attachInterrupt(strobeInput, Strobe_Input_Handler, RISING); // 4 ARDUINO
-  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, HIGH);  // 4 Rpi Pico
+  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, RISING);  // 4 Rpi Pico
   // attachInterrupt(digitalPinToInterrupt(k1), Strobe_Input_HandlerFall, FALLING);  // 4 Rpi Pico
-  //  pinMode(strobeInput, INPUT_PULLUP); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+   pinMode(strobeInput, INPUT_PULLUP); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   digitalWrite(solenoid_DIR, LOW);
@@ -519,6 +519,14 @@ void waiting_4_command() {
   }
   if (cmd.substring(0, 5) == "AFON") {
     autofocusState = 1;
+  }
+
+  if (cmd.substring(0, 4) == "T_ON") {
+    digitalWrite(therapyPin, HIGH);
+  }
+
+  if (cmd.substring(0, 5) == "T_OFF") {
+    digitalWrite(therapyPin, LOW);
   }
 
   if (cmd.substring(0, 1) == "M") {
@@ -874,19 +882,19 @@ void loop() {
   VAR_X = analogRead(VAR_X_pin);
   VAR_Y = analogRead(VAR_Y_pin);
 
-  if ((VAR_Y >= 767)) {
-    zoom(1, 2);
-  }
-  if (VAR_Y <= 256) {
-    zoom(0, 2);
-  }
+  // if ((VAR_Y >= 767)) {
+  //   zoom(1, 2);
+  // }
+  // if (VAR_Y <= 256) {
+  //   zoom(0, 2);
+  // }
 
-  if ((VAR_X >= 767)) {
-    focus(1, 2);
-  }
-  if (VAR_X <= 256) {
-    focus(0, 2);
-  }
+  // if ((VAR_X >= 767)) {
+  //   focus(1, 2);
+  // }
+  // if (VAR_X <= 256) {
+  //   focus(0, 2);
+  // }
 
   //  Serial.print("X = ");
   //  Serial.print(VAR_X);
