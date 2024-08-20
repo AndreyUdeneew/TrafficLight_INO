@@ -42,11 +42,11 @@ uint8_t dirPin_2 = 26;
 uint8_t solenoid_DIR = 3;
 uint8_t solenoid_ON = 2;
 
-volatile uint8_t PWM_GREEN = 1;
-volatile uint8_t PWM_UV = 1;
-volatile uint8_t PWM_Red = 1;
-volatile uint8_t PWM_IR = 1;
-volatile uint8_t PWM_IR_min = 0;
+volatile uint8_t PWM_GREEN = 255;
+volatile uint8_t PWM_UV = 255;
+volatile uint8_t PWM_Red = 255;
+volatile uint8_t PWM_IR = 126;
+volatile uint8_t PWM_IR_min = 1;
 
 uint8_t mode;
 uint8_t actualFilter = 0;
@@ -282,12 +282,12 @@ void setup() {
   pinMode(IR_LED, OUTPUT);     // GREEN LED
   // pinMode(3, OUTPUT);          // For migalka test
 
-  // analogWrite(GREEN_LED, PWM_GREEN);
-  // delay(10);
-  // analogWrite(UV_LED, PWM_GREEN);   // 4 correct work of interrpt
-  // analogWrite(RED_LED, PWM_GREEN);  // 4 correct work of interrpt
-  // analogWrite(IR_LED, PWM_GREEN);   // 4 correct work of interrpt
-  //  analogWrite(UV_LED, PWM_GREEN); // 4 correct work of interrpt
+  analogWrite(GREEN_LED, PWM_IR_min);
+  delay(10);
+  analogWrite(UV_LED, PWM_IR_min);   // 4 correct work of interrpt
+  analogWrite(RED_LED, PWM_IR_min);  // 4 correct work of interrpt
+  analogWrite(IR_LED, PWM_IR_min);   // 4 correct work of interrpt
+   analogWrite(UV_LED, PWM_IR_min); // 4 correct work of interrpt
   //digitalWrite(UV_LED, HIGH);// 4 correct work of interrpt
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
   Serial.begin(115200);
@@ -394,27 +394,31 @@ void Strobe_Input_HandlerRise() {
   if (counter == 1) {
     //  analogWrite(UV_LED, PWM_UV);
     //  analogWrite(RED_LED, 0);
-    // analogWrite(UV_LED, M[0][0]);
-    // analogWrite(RED_LED, M[1][0]);
-    // analogWrite(GREEN_LED, M[2][0]);
-    // analogWrite(IR_LED, M[3][0]);
+    analogWrite(UV_LED, M[0][0]);
+    analogWrite(RED_LED, M[1][0]);
+    analogWrite(GREEN_LED, M[2][0]);
+    analogWrite(IR_LED, M[3][0]);
 
     // lastTimer2 = millis();
-    digitalWrite(UV_LED, M[0][0]);
-    digitalWrite(RED_LED, M[1][0]);
-    digitalWrite(GREEN_LED, M[2][0]);
-    digitalWrite(IR_LED, M[3][0]);
+    // digitalWrite(UV_LED, M[0][0]);
+    // digitalWrite(RED_LED, M[1][0]);
+    // digitalWrite(GREEN_LED, M[2][0]);
+    // digitalWrite(IR_LED, M[3][0]);
   } else {
     //   //    analogWrite(UV_LED, 0);
     //   //    analogWrite(RED_LED, PWM_Red);
-    digitalWrite(UV_LED, M[0][1]);
-    digitalWrite(RED_LED, M[1][1]);
-    digitalWrite(GREEN_LED, M[2][1]);
+    // digitalWrite(UV_LED, M[0][1]);
+    // digitalWrite(RED_LED, M[1][1]);
+    // digitalWrite(GREEN_LED, M[2][1]);
     // //  digitalWrite(IR_LED, LOW);
     // digitalWrite(UV_LED, 0);
     // digitalWrite(RED_LED, 0);
     // digitalWrite(GREEN_LED, 0);
-    digitalWrite(IR_LED, M[3][1]);
+    // digitalWrite(IR_LED, M[3][1]);
+        analogWrite(UV_LED, M[0][1]);
+    analogWrite(RED_LED, M[1][1]);
+    analogWrite(GREEN_LED, M[2][1]);
+    analogWrite(IR_LED, M[3][1]);
   }
   // }
   counter += 1;  // + синхр.
