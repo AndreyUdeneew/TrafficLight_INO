@@ -58,16 +58,16 @@ int zoomPosition;
 int focusPosition;
 int zoomTargetPosition;
 int focusTargetPsition;
-int maxFocusSteps = 2100;
-int maxZoomSteps = 2900;
+int maxFocusSteps = 2300;
+int maxZoomSteps = 2400;
 int zoomOptimal = 1162;
 
 int fastLag = 500;
 int TIMER_INTERVAL_MS = 500;
 int optimalZoom = 1560;
-int deltaFocusThresh = 10;
+int deltaFocusThresh = 1;
 
-uint8_t autofocusState = 0;
+uint8_t autofocusState = 1;
 
 int16_t distance;
 
@@ -86,40 +86,8 @@ volatile uint8_t M5[4][2];
 volatile uint8_t M6[4][2];
 volatile uint8_t M7[4][2];
 
-
-//     static unsigned long lastTimer2 = 0;
-//   static bool timer2Stopped = false;
-// #define TIMER1_INTERVAL_MS 5000
-// #define ExposureMS 20
 uint8_t focusCorrected = 0;
 
-// // Never use Serial.print inside this mbed ISR. Will hang the system
-// void TimerHandler1(uint alarm_num) {
-//   static bool toggle1 = false;
-
-//   ///////////////////////////////////////////////////////////
-//   // Always call this for MBED RP2040 before processing ISR
-//   TIMER_ISR_START(alarm_num);
-//   ///////////////////////////////////////////////////////////
-//   //timer interrupt toggles pin LED_BUILTIN
-// if (focusCorrected == 1) {
-//   focusCorrected = 0;
-// }
-
-//   // digitalWrite(outputPin1, toggle1);
-//   toggle1 = !toggle1;
-//   // if (actualFilter == 1) {
-//   //   actualFilter = 0;
-//   // } else {
-//   //   actualFilter = 1;
-//   // }
-//   // distance = vl53.distance();
-
-//   ////////////////////////////////////////////////////////////
-//   // Always call this for MBED RP2040 after processing ISR
-//   // TIMER_ISR_END(alarm_num);
-//   ////////////////////////////////////////////////////////////
-// }
 
 void modesCacheRefresh() {
   // Serial.println("cache refreshing");
@@ -193,68 +161,6 @@ void setup() {
 
   modesCacheRefresh();
 
-  // M1[0][0] = PWM_UV;        // Red, Green, R/G, R-G
-  // M1[0][1] = 0;
-  // M1[1][0] = 0;
-  // M1[1][1] = 0;
-  // M1[2][0] = 0;
-  // M1[2][1] = 0;
-  // M1[3][0] = PWM_IR_min;
-  // M1[3][1] = PWM_IR_min;
-
-  // M2[0][0] = 0;           //RLED
-  // M2[0][1] = 0;
-  // M2[1][0] = PWM_Red;
-  // M2[1][1] = 0;
-  // M2[2][0] = 0;
-  // M2[2][1] = 0;
-  // M2[3][0] = PWM_IR_min;
-  // M2[3][1] = PWM_IR_min;
-
-  // M3[0][0] = PWM_UV;    //RLED + UV_LED
-  // M3[0][1] = 0;
-  // M3[1][0] = PWM_Red;
-  // M3[1][1] = 0;
-  // M3[2][0] = 0;
-  // M3[2][1] = 0;
-  // M3[3][0] = PWM_IR_min;
-  // M3[3][1] = PWM_IR_min;
-
-  // M4[0][0] = PWM_UV;  //oxygenation IR LEDs must be mounted instead of UV LEDs.
-  // M4[0][1] = 0;
-  // M4[1][0] = 0;
-  // M4[1][1] = PWM_Red;
-  // M4[2][0] = 0;
-  // M4[2][1] = 0;
-  // M4[3][0] = 0;
-  // M4[3][1] = 0;
-
-  // M5[0][0] = 0;       // G_LED
-  // M5[0][1] = 0;
-  // M5[1][0] = 0;
-  // M5[1][1] = 0;
-  // M5[2][0] = PWM_GREEN;
-  // M5[2][1] = 0;
-  // M5[3][0] = PWM_IR_min;
-  // M5[3][1] = PWM_IR_min;
-
-  // M6[0][0] = PWM_UV  //Tripple: red, green and UV LEDs.
-  // M6[0][1] = 0;
-  // M6[1][0] = PWM_Red;
-  // M6[1][1] = 0;
-  // M6[2][0] = PWM_GREEN;
-  // M6[2][1] = 0;
-  // M6[3][0] = PWM_IR_min;
-  // M6[3][1] = PWM_IR_min;
-
-  // M7[0][0] = 0;  // ICG mode IR LEDs must be mounted instead of GREEN LEDs.
-  // M7[0][1] = 0;
-  // M7[1][0] = 0;
-  // M7[1][1] = 0;
-  // M7[2][0] = 0;  //No White Light
-  // M7[2][1] = 0;  //No White Light
-  // M7[3][0] = PWM_IR;
-  // M7[3][1] = 0;
 
   pinMode(stepPin_1, OUTPUT);
   pinMode(dirPin_1, OUTPUT);
@@ -294,43 +200,14 @@ void setup() {
   Serial.setTimeout(100);
   //  pinMode(strobeInput,INPUT);
   //  attachInterrupt(strobeInput, Strobe_Input_Handler, RISING); // 4 ARDUINO
-  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, RISING);  // 4 Rpi Pico
+  attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, HIGH);  // 4 Rpi Pico
   // attachInterrupt(digitalPinToInterrupt(k1), Strobe_Input_HandlerFall, FALLING);  // 4 Rpi Pico
-   pinMode(strobeInput, INPUT_PULLUP); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+   pinMode(strobeInput, INPUT); // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   digitalWrite(solenoid_DIR, LOW);
   digitalWrite(solenoid_ON, LOW);
   motorsCalibration();
-  // while (!Serial) delay(10);
-  //
-  // Serial.println(F("Adafruit VL53L1X sensor demo"));
-  // Wire.begin(400000);
-  // if (!vl53.begin(0x29, &Wire)) {
-  //   Serial.print(F("Error on init of VL sensor: "));
-  //   Serial.println(vl53.vl_status);
-  //   while (1) delay(10);
-  // }
-  // Serial.println(F("VL53L1X sensorOK!"));
-
-  // Serial.print(F("Sensor ID: 0x"));
-  // Serial.println(vl53.sensorID(), HEX);
-
-  // if (!vl53.startRanging()) {
-  //   Serial.print(F("Couldn't start ranging: "));
-  //   Serial.println(vl53.vl_status);
-  //   while (1) delay(10);
-  // }
-  // Serial.println(F("Ranging started"));
-
-  // //   Valid timing budgets: 15, 20, 33, 50, 100, 200 and 500ms!
-  // vl53.setTimingBudget(15);
-  // //    Serial.print(F("Timing budget (ms): "));
-  // //    Serial.println(vl53.getTimingBudget());
-
-
-  // //  vl.VL53L1X_SetDistanceThreshold(100, 300, 3, 1);
-  // //  vl.VL53L1X_SetInterruptPolarity(0);
 
   Serial.println("Adafruit VL53L0X test.");
   if (!lox.begin()) {
@@ -358,10 +235,10 @@ void setup() {
   // zoomNsteps(0, maxZoomSteps, fastLag);
   // zoomPosition = 0;
   // // maxZoomSteps -= zoomOptimal;
-  // focusNsteps(1, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
-  // focusNsteps(0, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
+  focusNsteps(1, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
+  focusNsteps(0, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
   // zoomNsteps(1, optimalZoom, fastLag);
-  // focusPosition = 0;
+  focusPosition = 0;
 }
 
 void motorsCalibration() {
@@ -602,8 +479,8 @@ int distanceMeas(void) {
   // Serial.print(F("Distance: "));
   Serial.print(distance);
   Serial.println(" mm");
-  Serial.print("ZOOM ");
-  Serial.println(zoomPosition);
+  // Serial.print("ZOOM ");
+  // Serial.println(zoomPosition);
   Serial.print("FOCUS ");
   Serial.println(focusPosition);
 
@@ -645,7 +522,7 @@ void zoom(uint8_t dir, uint8_t lag) {
       if (zoomPosition >= maxZoomSteps) {
         zoomPosition = maxZoomSteps;
       }
-      // Serial.println(zoomCount);
+      Serial.println(zoomPosition);
     }
   }
   if (dir == 0) {
@@ -660,7 +537,7 @@ void zoom(uint8_t dir, uint8_t lag) {
       if (zoomPosition <= 0) {
         zoomPosition = 0;
       }
-      // Serial.println(zoomCount);
+      Serial.println(zoomPosition);
     }
   }
   digitalWrite(nMotorsSleep, LOW);
@@ -723,7 +600,7 @@ void focus(uint8_t dir, uint8_t lag) {
       if (focusPosition >= maxFocusSteps) {
         focusPosition = maxFocusSteps;
       }
-      // Serial.println(focusCount);
+      Serial.println(focusPosition);
     }
   }
   if (dir == 0) {
@@ -738,7 +615,7 @@ void focus(uint8_t dir, uint8_t lag) {
       if (focusPosition <= 0) {
         focusPosition = 0;
       }
-      // Serial.println(focusCount);
+      Serial.println(focusPosition);
     }
   }
   digitalWrite(nMotorsSleep, LOW);
@@ -797,8 +674,8 @@ void focusCorrection() {
   int steps;
 
   // correctFocus = -2473.5 + 1.7036 * distance + 1.867 * zoomPosition + 0.02818 * distance * distance - 0.0073557 * zoomPosition * distance + 0.00021246 * zoomPosition * zoomPosition; //function of two variables
-  correctFocus = -0.0012 * distance * distance * distance + 0.4607 * distance * distance - 61.597 * distance + 3126.5;  //function of tthe one variable
-
+  // correctFocus = -0.0012 * distance * distance * distance + 0.4607 * distance * distance - 61.597 * distance + 3126.5;  //function of the one variable
+correctFocus = 0.0000005 * distance * distance * distance * distance -0.0005 * distance * distance * distance + 0.19 * distance * distance - 32.961 * distance + 3260.6;  //function of the one variable
   if ((correctFocus - focusPosition) >= 0) {
     deltaFocus = correctFocus - focusPosition;
     dir = 1;
@@ -835,6 +712,7 @@ void loop() {
     // if (focusCorrected == 0) {
     if (autofocusState == 1) {
       focusCorrection();
+      // distance = distanceMeas();
     }
   }
   //     if (millis() - lastTimer2 > ExposureMS) {
@@ -884,7 +762,7 @@ void loop() {
   // delay(1000);
 
   VAR_X = analogRead(VAR_X_pin);
-  VAR_Y = analogRead(VAR_Y_pin);
+  // VAR_Y = analogRead(VAR_Y_pin);
 
   // if ((VAR_Y >= 767)) {
   //   zoom(1, 2);
@@ -893,12 +771,12 @@ void loop() {
   //   zoom(0, 2);
   // }
 
-  // if ((VAR_X >= 767)) {
-  //   focus(1, 2);
-  // }
-  // if (VAR_X <= 256) {
-  //   focus(0, 2);
-  // }
+  if ((VAR_X >= 767)) {
+    focus(1, 2);
+  }
+  if (VAR_X <= 256) {
+    focus(0, 2);
+  }
 
   //  Serial.print("X = ");
   //  Serial.print(VAR_X);
