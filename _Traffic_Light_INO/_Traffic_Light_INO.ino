@@ -1,7 +1,10 @@
 #include <Wire.h>
 #include "Adafruit_VL53L0X.h"
+#include <Adafruit_MLX90640.h>
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+Adafruit_MLX90640 mlx;
+float frame[768];  // buffer for full frame of temperatures
 // #define IRQ_PIN 3
 // #define XSHUT_PIN 28
 // Adafruit_VL53L1X vl53 = Adafruit_VL53L1X(XSHUT_PIN, IRQ_PIN);
@@ -87,6 +90,7 @@ volatile uint8_t M6[4][2];
 volatile uint8_t M7[4][2];
 
 uint8_t focusCorrected = 0;
+bool RDY2SEND_thermo = false;
 
 
 void modesCacheRefresh() {
@@ -158,11 +162,10 @@ void modesCacheRefresh() {
 void autofocusToggle() {
   if (autofocusState == 1) {
     lox.startRangeContinuous();
-}
-    if (autofocusState == 0) {
+  }
+  if (autofocusState == 0) {
     lox.stopRangeContinuous();
-    }
-  
+  }
 }
 
 
@@ -207,11 +210,14 @@ void setup() {
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
   Serial.begin(115200);
   Serial.setTimeout(100);
+  Wire.setClock(400000);
+  Wire.begin();
+  sleep_ms(50);
   //  pinMode(strobeInput,INPUT);
   //  attachInterrupt(strobeInput, Strobe_Input_Handler, RISING); // 4 ARDUINO
   attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, CHANGE);  // 4 Rpi Pico
                                                                                           // attachInterrupt(digitalPinToInterrupt(k1), Strobe_Input_HandlerFall, FALLING);  // 4 Rpi Pico
-  pinMode(strobeInput, INPUT_PULLUP);                                                            // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
+  pinMode(strobeInput, INPUT_PULLUP);                                                     // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(strobeInput, INPUT);  // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   // pinMode(k1, INPUT);           // 4 Rpi Pico pull_up must be after the attachinterrupt. It's a bug.
   digitalWrite(solenoid_DIR, LOW);
@@ -239,16 +245,84 @@ void setup() {
   focusNsteps(0, maxFocusSteps, fastLag);  // correct N of steps dir 1 - to the closest zoom
   // zoomNsteps(1, optimalZoom, fastLag);
   focusPosition = 0;
-    
-    if (!lox.begin()) {
-      // Serial.println(F("Failed to boot VL53L0X"));
-      while (1);
-    }
-    // if (autofocusState == 0) {
-    // lox.stopRangeContinuous();
+
+  if (!lox.begin()) {
+    // Serial.println(F("Failed to boot VL53L0X"));
+    while (1)
+      ;
+  }
+  // if (autofocusState == 0) {
+  // lox.stopRangeContinuous();
+  // }
+
+  if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
+    // Serial.println("MLX90640 not found!");
+    // while (1) delay(10);
+  }
+  mlx.setMode(MLX90640_INTERLEAVED);
+  mlx.setResolution(MLX90640_ADC_16BIT);  // 16 17 18 19 bits
+  mlx90640_resolution_t res = mlx.getResolution();
+  mlx.setRefreshRate(MLX90640_16_HZ);  // 0.5  1 2 4 8 16    32  64 Hz
+  mlx90640_refreshrate_t rate = mlx.getRefreshRate();
+
+  if (mlx.getFrame(frame) != 0) {
+    // Serial.println("Failed");
+    RDY2SEND_thermo = true;
+    // RDY2SEND_common = true;
+    // if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
+    //   Serial.println("MLX90640 not found!");
+    //   while (1) delay(10);
     // }
-  
+    // return;
+  }
 }
+
+void teplovizorGrab() {
+  // TCA9548A(4);
+  if (mlx.getFrame(frame) != 0) {
+    // Serial.println("Failed");
+    // TCA9548A(3);
+    // sleep_ms(100);
+    if (mlx.getFrame(frame) != 0) {
+    }
+    RDY2SEND_thermo = true;
+    // RDY2SEND_common = true;
+    // if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
+    //   Serial.println("MLX90640 not found!");
+    //   while (1) delay(10);
+    // }
+    // return;
+  }
+}
+
+void teplovizorPrint() {
+  float t_sum = 0;
+  Serial.print("SensorHeatMap");
+  // teplovizorPrintTiming = millis();
+  for (uint16_t h = 0; h < 768; h++) {
+    float t = frame[h];
+    t_sum += t;
+    Serial.print("\t");
+    Serial.print(t, 0);
+  }
+  float t_sred = t_sum / 768;
+  Serial.println();
+  Serial.println(t_sred);
+}
+
+// void printTemperature(DeviceAddress deviceAddress)
+// {
+//   float tempC = sensors.getTempC(deviceAddress);
+//   if(tempC == DEVICE_DISCONNECTED_C)
+//   {
+//     Serial.println("Error: Could not read temperature data");
+//     return;
+//   }
+//   Serial.print("Temp C: ");
+//   Serial.print(tempC);
+//   // Serial.print(" Temp F: ");
+//   // Serial.print(DallasTemperature::toFahrenheit(tempC));
+// }
 
 void motorsCalibration() {
   digitalWrite(nEnl, LOW);
@@ -415,7 +489,6 @@ void waiting_4_command() {
   if (cmd.substring(0, 5) == "AFON") {
     autofocusState = 1;
     autofocusToggle();
-    
   }
 
   if (cmd.substring(0, 4) == "T_ON") {
@@ -807,6 +880,8 @@ void loop() {
   //  digitalWrite(3, LOW);
   //  filterChange(1);
   // delay(500);
+  teplovizorGrab();
+  teplovizorPrint();
   if (Serial.available()) {
     waiting_4_command();
   }
