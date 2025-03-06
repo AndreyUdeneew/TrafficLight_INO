@@ -297,17 +297,18 @@ void teplovizorGrab() {
 
 void teplovizorPrint() {
   float t_sum = 0;
-  Serial.print("SensorHeatMap");
+  Serial.print("T ");
   // teplovizorPrintTiming = millis();
   for (uint16_t h = 0; h < 768; h++) {
     float t = frame[h];
     t_sum += t;
-    Serial.print("\t");
-    Serial.print(t, 0);
+    // Serial.print("\t");
+    // Serial.print(t, 0);
   }
   float t_sred = t_sum / 768;
-  Serial.println();
-  Serial.println(t_sred);
+  // Serial.println();
+  Serial.println(String(t_sred) + " C");
+  // Serial.println(" C");
 }
 
 // void printTemperature(DeviceAddress deviceAddress)
@@ -798,6 +799,8 @@ void loop() {
 
   if (millis() - lastTimer1 > TIMER_INTERVAL_MS) {
     lastTimer1 = millis();
+    teplovizorGrab();
+    teplovizorPrint();
     // if (focusCorrected == 0) {
     if (autofocusState == 1) {
       focusCorrection();
@@ -880,8 +883,6 @@ void loop() {
   //  digitalWrite(3, LOW);
   //  filterChange(1);
   // delay(500);
-  teplovizorGrab();
-  teplovizorPrint();
   if (Serial.available()) {
     waiting_4_command();
   }
