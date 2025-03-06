@@ -1,10 +1,7 @@
 #include <Wire.h>
 #include "Adafruit_VL53L0X.h"
-#include <Adafruit_MLX90640.h>
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
-Adafruit_MLX90640 mlx;
-float frame[768];  // buffer for full frame of temperatures
 // #define IRQ_PIN 3
 // #define XSHUT_PIN 28
 // Adafruit_VL53L1X vl53 = Adafruit_VL53L1X(XSHUT_PIN, IRQ_PIN);
@@ -90,7 +87,6 @@ volatile uint8_t M6[4][2];
 volatile uint8_t M7[4][2];
 
 uint8_t focusCorrected = 0;
-bool RDY2SEND_thermo = false;
 
 
 void modesCacheRefresh() {
@@ -199,6 +195,7 @@ void setup() {
   pinMode(GREEN_LED, OUTPUT);  // GREEN LED
   pinMode(IR_LED, OUTPUT);     // GREEN LED
   // pinMode(3, OUTPUT);          // For migalka test
+  pinMode(SW_pin, INPUT_PULLUP);
 
   digitalWrite(GREEN_LED, PWM_IR_min);
   delay(10);
@@ -210,9 +207,6 @@ void setup() {
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
   Serial.begin(115200);
   Serial.setTimeout(100);
-  Wire.setClock(400000);
-  Wire.begin();
-  sleep_ms(50);
   //  pinMode(strobeInput,INPUT);
   //  attachInterrupt(strobeInput, Strobe_Input_Handler, RISING); // 4 ARDUINO
   attachInterrupt(digitalPinToInterrupt(strobeInput), Strobe_Input_HandlerRise, CHANGE);  // 4 Rpi Pico
@@ -254,76 +248,11 @@ void setup() {
   // if (autofocusState == 0) {
   // lox.stopRangeContinuous();
   // }
-
-  if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
-    // Serial.println("MLX90640 not found!");
-    // while (1) delay(10);
-  }
-  mlx.setMode(MLX90640_INTERLEAVED);
-  mlx.setResolution(MLX90640_ADC_16BIT);  // 16 17 18 19 bits
-  mlx90640_resolution_t res = mlx.getResolution();
-  mlx.setRefreshRate(MLX90640_16_HZ);  // 0.5  1 2 4 8 16    32  64 Hz
-  mlx90640_refreshrate_t rate = mlx.getRefreshRate();
-
-  if (mlx.getFrame(frame) != 0) {
-    // Serial.println("Failed");
-    RDY2SEND_thermo = true;
-    // RDY2SEND_common = true;
-    // if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
-    //   Serial.println("MLX90640 not found!");
-    //   while (1) delay(10);
-    // }
-    // return;
-  }
+    lox.startRangeContinuous();
+    delay(100);
+    focusCorrection();
+    lox.stopRangeContinuous();
 }
-
-void teplovizorGrab() {
-  // TCA9548A(4);
-  if (mlx.getFrame(frame) != 0) {
-    // Serial.println("Failed");
-    // TCA9548A(3);
-    // sleep_ms(100);
-    if (mlx.getFrame(frame) != 0) {
-    }
-    RDY2SEND_thermo = true;
-    // RDY2SEND_common = true;
-    // if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
-    //   Serial.println("MLX90640 not found!");
-    //   while (1) delay(10);
-    // }
-    // return;
-  }
-}
-
-void teplovizorPrint() {
-  float t_sum = 0;
-  Serial.print("T ");
-  // teplovizorPrintTiming = millis();
-  for (uint16_t h = 0; h < 768; h++) {
-    float t = frame[h];
-    t_sum += t;
-    // Serial.print("\t");
-    // Serial.print(t, 0);
-  }
-  float t_sred = t_sum / 768;
-  // Serial.println();
-  Serial.println(String(t_sred) + " C");
-  // Serial.println(" C");
-}
-
-// void printTemperature(DeviceAddress deviceAddress)
-// {
-//   float tempC = sensors.getTempC(deviceAddress);
-//   if(tempC == DEVICE_DISCONNECTED_C)
-//   {
-//     Serial.println("Error: Could not read temperature data");
-//     return;
-//   }
-//   Serial.print("Temp C: ");
-//   Serial.print(tempC);
-//   // Serial.print(" Temp F: ");
-//   // Serial.print(DallasTemperature::toFahrenheit(tempC));
-// }
 
 void motorsCalibration() {
   digitalWrite(nEnl, LOW);
@@ -490,6 +419,12 @@ void waiting_4_command() {
   if (cmd.substring(0, 5) == "AFON") {
     autofocusState = 1;
     autofocusToggle();
+  }
+  if (cmd.substring(0, 3) == "AF") {
+    lox.startRangeContinuous();
+    delay(100);
+    focusCorrection();
+    lox.stopRangeContinuous();
   }
 
   if (cmd.substring(0, 4) == "T_ON") {
@@ -752,6 +687,7 @@ void focusNsteps(uint8_t dir, int nSteps, int lag) {
 }
 
 void focusCorrection() {
+  lox.startRangeContinuous();
   int dir;
   int distance = distanceMeas();
   if (distance > 1000) {
@@ -790,6 +726,7 @@ void focusCorrection() {
   // Serial.println(focusCorrected);
   focusCorrected = 1;
   // Serial.println(" focus was corrected");
+  // lox.stopRangeContinuous();
 }
 
 void loop() {
@@ -799,8 +736,6 @@ void loop() {
 
   if (millis() - lastTimer1 > TIMER_INTERVAL_MS) {
     lastTimer1 = millis();
-    teplovizorGrab();
-    teplovizorPrint();
     // if (focusCorrected == 0) {
     if (autofocusState == 1) {
       focusCorrection();
@@ -852,7 +787,13 @@ void loop() {
   // Serial.print("Distance = ");
   // Serial.println(distance);
   // delay(1000);
-
+  if(digitalRead(SW_pin) == LOW)
+  {
+    lox.startRangeContinuous();
+    delay(100);
+    focusCorrection();
+    lox.stopRangeContinuous();
+  }
   VAR_X = analogRead(VAR_X_pin);
   // VAR_Y = analogRead(VAR_Y_pin);
 
