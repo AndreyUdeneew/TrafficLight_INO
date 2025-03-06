@@ -487,9 +487,9 @@ void waiting_4_command() {
 int distanceMeas(void) {
 
   if (lox.isRangeComplete()) {
-    Serial.print("Distance in mm: ");
+    // Serial.print("Distance in mm: ");
     distance = lox.readRange();
-    Serial.println(distance);
+    // Serial.println(distance);
   }
 
   // if (vl53.dataReady()) {
@@ -502,12 +502,12 @@ int distanceMeas(void) {
   //     return 0;
   //   }
   // Serial.print(F("Distance: "));
-  Serial.print(distance);
-  Serial.println(" mm");
+  // Serial.print(distance);
+  // Serial.println(" mm");
   // Serial.print("ZOOM ");
   // Serial.println(zoomPosition);
-  Serial.print("FOCUS ");
-  Serial.println(focusPosition);
+  // Serial.print("FOCUS ");
+  // Serial.println(focusPosition);
 
   // data is read out, time for another reading!
   // vl53.clearInterrupt();
