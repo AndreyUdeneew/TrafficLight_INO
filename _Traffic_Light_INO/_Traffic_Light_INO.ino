@@ -19,7 +19,7 @@ uint8_t UV_LED = 7;
 uint8_t GREEN_LED = 10;
 uint8_t RED_LED = 8;
 uint8_t IR_LED = 9;
-
+uint8_t TSHOT = 0;
 uint8_t SW_pin = 27;
 uint8_t VAR_X_pin = 28;
 uint8_t VAR_Y_pin = 29;
@@ -305,18 +305,19 @@ void teplovizorGrab() {
 }
 
 void teplovizorPrint() {
-  float t_sum = 0;
-  Serial.print("T ");
+  // float t_sum = 0;
+  // Serial.print("T ");
   // teplovizorPrintTiming = millis();
   for (uint16_t h = 0; h < 768; h++) {
     float t = frame[h];
-    t_sum += t;
-    // Serial.print("\t");
-    // Serial.print(t, 0);
+    // t_sum += t;
+    Serial.print(t, 0);
+    Serial.print('\t');
+    
   }
-  float t_sred = t_sum / 768;
-  // Serial.println();
-  Serial.println(String(t_sred) + " C");
+  // float t_sred = t_sum / 768;
+  Serial.println();
+  // Serial.println(String(t_sred) + " C");
   // Serial.println(" C");
 }
 
@@ -501,7 +502,10 @@ void waiting_4_command() {
   if (cmd.substring(0, 4) == "T_ON") {
     digitalWrite(therapyPin, HIGH);
   }
-
+    if (cmd.substring(0, 5) == "TSHOT") {
+      // delay(100);
+    TSHOT = 1;
+  }
   if (cmd.substring(0, 5) == "T_OFF") {
     digitalWrite(therapyPin, LOW);
   }
@@ -885,6 +889,13 @@ void loop() {
     focus(0, 2);
   }
 
+if(TSHOT == 1)
+{
+        teplovizorGrab();
+      teplovizorPrint();
+      teplovizorPrint();
+      TSHOT = 0;
+}
   //  Serial.print("X = ");
   //  Serial.print(VAR_X);
   //  Serial.print("\t Y = ");
