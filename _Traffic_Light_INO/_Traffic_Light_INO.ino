@@ -12,11 +12,16 @@ float frame[768];  // buffer for full frame of temperatures
 String cmd, CMDcur;
 uint8_t programNumber;
 
+uint8_t therapyEnabled = 1;
+float tissueOverheatThreshold = 40.0;
+float overheatHist = 2;
+uint8_t thermalDataSent = 1;
+
 volatile int counter = 0;
 
 uint8_t strobeInput = 6;
 uint8_t UV_LED = 7;
-uint8_t GREEN_LED = 10;
+uint8_t GREEN_LED = 23;
 uint8_t RED_LED = 8;
 uint8_t IR_LED = 9;
 uint8_t TSHOT = 0;
@@ -34,7 +39,7 @@ uint8_t k1 = 20;
 uint8_t k2 = 21;
 uint8_t k3 = 22;
 // uint8_t k4 = 23;
-uint8_t therapyPin = 23;
+uint8_t therapyPin = 10;
 uint8_t k5 = 24;
 uint8_t k6 = 25;
 
@@ -212,8 +217,8 @@ void setup() {
   //digitalWrite(UV_LED, HIGH);// 4 correct work of interrpt
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
   Serial.begin(115200);
-  Serial.setTimeout(100);
-    Wire.setClock(400000);
+  Serial.setTimeout(50);
+  Wire.setClock(400000);
   Wire.begin();
   sleep_ms(50);
   //  pinMode(strobeInput,INPUT);
@@ -265,7 +270,7 @@ void setup() {
   mlx.setMode(MLX90640_INTERLEAVED);
   mlx.setResolution(MLX90640_ADC_16BIT);  // 16 17 18 19 bits
   mlx90640_resolution_t res = mlx.getResolution();
-  mlx.setRefreshRate(MLX90640_16_HZ);  // 0.5  1 2 4 8 16    32  64 Hz
+  mlx.setRefreshRate(MLX90640_4_HZ);  // 0.5  1 2 4 8 16    32  64 Hz
   mlx90640_refreshrate_t rate = mlx.getRefreshRate();
 
   if (mlx.getFrame(frame) != 0) {
@@ -287,24 +292,43 @@ void setup() {
 }
 
 void teplovizorGrab() {
-  // TCA9548A(4);
-  if (mlx.getFrame(frame) != 0) {
-    // Serial.println("Failed");
-    // TCA9548A(3);
-    // sleep_ms(100);
+  // Serial.println("enter the grabber");
+  if (thermalDataSent == 1) {
+    // Serial.println("data was sent");
+    float tMax = 0;
+    if (therapyEnabled == 0) {
+      if (mlx.getFrame(frame) != 0) {
+      }
+      for (uint16_t h = 0; h < 768; h++) {
+        float t = frame[h];
+        if (t > tMax) {
+          tMax = t;
+        }
+        if (tMax < (tissueOverheatThreshold - overheatHist)) {
+          therapyEnabled = 1;
+        }
+      }
+    }
+
     if (mlx.getFrame(frame) != 0) {
     }
+    // Serial.println("trying 2 read");
+    for (uint16_t h = 0; h < 768; h++) {
+      float t = frame[h];
+      if (t > tMax) {
+        tMax = t;
+      }
+      if (tMax >= tissueOverheatThreshold) {
+        therapyEnabled = 0;
+      }
+    }
     RDY2SEND_thermo = true;
-    // RDY2SEND_common = true;
-    // if (!mlx.begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
-    //   Serial.println("MLX90640 not found!");
-    //   while (1) delay(10);
-    // }
-    // return;
   }
 }
 
+
 void teplovizorPrint() {
+  thermalDataSent = 0;
   // float t_sum = 0;
   // Serial.print("T ");
   // teplovizorPrintTiming = millis();
@@ -313,12 +337,12 @@ void teplovizorPrint() {
     // t_sum += t;
     Serial.print(t, 0);
     Serial.print('\t');
-    
   }
   // float t_sred = t_sum / 768;
   Serial.println();
   // Serial.println(String(t_sred) + " C");
   // Serial.println(" C");
+  thermalDataSent = 1;
 }
 
 void motorsCalibration() {
@@ -353,7 +377,7 @@ void Strobe_Input_HandlerRise() {
     //  analogWrite(RED_LED, 0);
     digitalWrite(UV_LED, M[0][0]);
     digitalWrite(RED_LED, M[1][0]);
-    digitalWrite(GREEN_LED, M[2][0]);
+    digitalWrite(GREEN_LED, ((M[2][0]) * therapyEnabled));
     digitalWrite(IR_LED, M[3][0]);
     // analogWrite(RED_LED, M[1][0]);
     // analogWrite(GREEN_LED, M[2][0]);
@@ -378,7 +402,7 @@ void Strobe_Input_HandlerRise() {
     // digitalWrite(IR_LED, M[3][1]);
     digitalWrite(UV_LED, M[0][1]);
     digitalWrite(RED_LED, M[1][1]);
-    digitalWrite(GREEN_LED, M[2][1]);
+    digitalWrite(GREEN_LED, ((M[2][1]) * therapyEnabled));
     digitalWrite(IR_LED, M[3][1]);
   }
   // }
@@ -502,8 +526,8 @@ void waiting_4_command() {
   if (cmd.substring(0, 4) == "T_ON") {
     digitalWrite(therapyPin, HIGH);
   }
-    if (cmd.substring(0, 5) == "TSHOT") {
-      // delay(100);
+  if (cmd.substring(0, 5) == "TSHOT") {
+    // delay(100);
     TSHOT = 1;
   }
   if (cmd.substring(0, 5) == "T_OFF") {
@@ -728,34 +752,28 @@ void focusNsteps(uint8_t dir, int nSteps, int lag) {
     digitalWrite(dirPin_1, HIGH);
     for (int i = 0; i < nSteps; i++) {
       digitalWrite(stepPin_1, HIGH);
-      // delay(lag);
       delayMicroseconds(lag);
       digitalWrite(stepPin_1, LOW);
-      // delay(lag);
       delayMicroseconds(lag);
       focusCount += 1;
       focusPosition += 1;
       if (focusPosition >= maxFocusSteps) {
         focusPosition = maxFocusSteps;
       }
-      // Serial.println(focusCount);
     }
   }
   if (dir == 0) {
     digitalWrite(dirPin_1, LOW);
     for (int i = 0; i < nSteps; i++) {
       digitalWrite(stepPin_1, HIGH);
-      // delay(lag);
       delayMicroseconds(lag);
       digitalWrite(stepPin_1, LOW);
-      // delay(lag);
       delayMicroseconds(lag);
       focusCount += 1;
       focusPosition -= 1;
       if (focusPosition <= 0) {
         focusPosition = 0;
       }
-      // Serial.println(focusCount);
     }
   }
   digitalWrite(nMotorsSleep, LOW);
@@ -785,23 +803,10 @@ void focusCorrection() {
     dir = 0;
   }
   if (abs(deltaFocus) < deltaFocusThresh) {
-    // Serial.println("No need 4 correction");
     return;
   }
-  // Serial.println("doing correction");
-  // Serial.print("correct focus = ");
-  // Serial.println(correctFocus);
-  // Serial.print("current focus = ");
-  // Serial.println(focusPosition);
-  // Serial.print("dir = ");
-  // Serial.println(dir);
-  // Serial.print("deltaFocus = ");
-  // Serial.println(deltaFocus);
   focusNsteps(dir, deltaFocus, fastLag);
-  // Serial.println(focusCorrected);
   focusCorrected = 1;
-  // Serial.println(" focus was corrected");
-  // lox.stopRangeContinuous();
 }
 
 void loop() {
@@ -811,6 +816,11 @@ void loop() {
 
   if (millis() - lastTimer1 > TIMER_INTERVAL_MS) {
     lastTimer1 = millis();
+    if (TSHOT == 0) {
+      teplovizorGrab();
+      // teplovizorPrint();
+    }
+
     // if (focusCorrected == 0) {
     if (autofocusState == 1) {
       focusCorrection();
@@ -821,51 +831,7 @@ void loop() {
       teplovizorPrint();
     }
   }
-  //     if (millis() - lastTimer2 > ExposureMS) {
 
-  // analogWrite(UV_LED, 0);
-  // analogWrite(RED_LED, 0);
-  // analogWrite(GREEN_LED, 0);
-  // analogWrite(IR_LED, 0);
-
-  // }
-  // if (timer1Stopped) {
-  //   Serial.print(F("Start ITimer1, millis() = "));
-  //   Serial.println(millis());
-  //   // focusCorrected = 0;
-
-  //   ITimer1.restartTimer();
-  //   // distanceMeas();
-
-
-
-  //   // filterChange(actualFilter);
-  // } else {
-
-
-  //   Serial.print(F("Stop ITimer1, millis() = "));
-  //   Serial.println(millis());
-  //   ITimer1.stopTimer();
-  // }
-  // timer1Stopped = !timer1Stopped;
-  // Serial.println("timer restarted");
-  // }
-
-  // timer1Stopped = timer1Stopped;
-
-  // focusNsteps(0, 500, fastLag);
-  // delay(1000);
-  // focusNsteps(1, 500, fastLag);
-  // delay(1000);
-  // zoomNsteps(0, 500, fastLag);
-  // delay(1000);
-  // zoomNsteps(1, 500, fastLag);
-  // delay(1000);
-
-
-  // Serial.print("Distance = ");
-  // Serial.println(distance);
-  // delay(1000);
   if (digitalRead(SW_pin) == LOW) {
     lox.startRangeContinuous();
     delay(100);
@@ -873,14 +839,7 @@ void loop() {
     lox.stopRangeContinuous();
   }
   VAR_X = analogRead(VAR_X_pin);
-  // VAR_Y = analogRead(VAR_Y_pin);
 
-  // if ((VAR_Y >= 767)) {
-  //   zoom(1, 2);
-  // }
-  // if (VAR_Y <= 256) {
-  //   zoom(0, 2);
-  // }
 
   if ((VAR_X >= 767)) {
     focus(1, 2);
@@ -889,26 +848,13 @@ void loop() {
     focus(0, 2);
   }
 
-if(TSHOT == 1)
-{
-        teplovizorGrab();
-      teplovizorPrint();
-      teplovizorPrint();
-      TSHOT = 0;
-}
-  //  Serial.print("X = ");
-  //  Serial.print(VAR_X);
-  //  Serial.print("\t Y = ");
-  //  Serial.println(VAR_Y);
+  if (TSHOT == 1) {
+    teplovizorGrab();
+    teplovizorPrint();
+    teplovizorPrint();
+    TSHOT = 0;
+  }
 
-  //  delay(20);
-  // Serial.println(counter);
-  // digitalWrite(3, HIGH);
-  //  filterChange(0);
-  // delay(500);
-  //  digitalWrite(3, LOW);
-  //  filterChange(1);
-  // delay(500);
   if (Serial.available()) {
     waiting_4_command();
   }
