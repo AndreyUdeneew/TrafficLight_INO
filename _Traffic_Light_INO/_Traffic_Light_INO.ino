@@ -304,9 +304,9 @@ void teplovizorGrab() {
         if (t > tMax) {
           tMax = t;
         }
-        if (tMax < (tissueOverheatThreshold - overheatHist)) {
-          therapyEnabled = 1;
-        }
+      }
+      if (tMax < (tissueOverheatThreshold - overheatHist)) {
+        therapyEnabled = 1;
       }
     }
 
