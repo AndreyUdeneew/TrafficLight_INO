@@ -218,7 +218,7 @@ void setup() {
   //digitalWrite(RED_LED, HIGH);// 4 correct work of interrpt
   Serial.begin(115200);
   Serial.setTimeout(50);
-  Wire.setClock(400000);
+  Wire.setClock(1000000);
   Wire.begin();
   sleep_ms(50);
   //  pinMode(strobeInput,INPUT);
@@ -851,7 +851,7 @@ void loop() {
   if (TSHOT == 1) {
     teplovizorGrab();
     teplovizorPrint();
-    teplovizorPrint();
+    // teplovizorPrint();
     TSHOT = 0;
   }
 
