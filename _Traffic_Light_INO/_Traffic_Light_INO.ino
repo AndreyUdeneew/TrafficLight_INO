@@ -475,9 +475,12 @@ void waiting_4_command() {
   }
 
   if (cmd.substring(0, 5) == "DIST?") {
-    // distanceMeas();
+    lox.startRangeContinuous();
+    delay(100);
     int dist = distanceMeas();
-    Serial.println(dist);
+    lox.stopRangeContinuous();
+    Serial.print(dist);
+    Serial.println();
   }
 
   if (cmd.substring(0, 3) == "OFF") {
