@@ -475,7 +475,9 @@ void waiting_4_command() {
   }
 
   if (cmd.substring(0, 5) == "DIST?") {
-    distanceMeas();
+    // distanceMeas();
+    int dist = distanceMeas();
+    Serial.println(dist);
   }
 
   if (cmd.substring(0, 3) == "OFF") {
